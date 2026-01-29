@@ -225,7 +225,7 @@ useHead({
       </UCard>
 
       <div v-if="activeTab === 'specs'" class="property my-2">
-        <UEmptyState 
+        <UEmpty 
           v-if="!info?.property_list || info.property_list.length === 0"
           icon="i-lucide-file-question"
           title="No specifications available"
@@ -267,7 +267,7 @@ useHead({
             :original-price="product.original_price"
           />
         </div>
-        <UEmptyState
+        <UEmpty
           v-else
           icon="i-lucide-package"
           title="No recommended products"

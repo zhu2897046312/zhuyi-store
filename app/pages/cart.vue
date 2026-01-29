@@ -26,19 +26,32 @@ const { data: cart_list, refresh, pending } = await useAsyncData('cart-list', as
   try {
     const res: any = await api.shop.cart.list()
     
-    // 处理不同的响应格式
-    const list = Array.isArray(res) ? res : (res?.list || [])
+    // 处理不同的响应格式，确保始终返回数组
+    let list: any[] = []
+    if (Array.isArray(res)) {
+      list = res
+    } else if (res && typeof res === 'object') {
+      list = res.list || []
+    }
+    
+    // 确保 list 是数组
+    if (!Array.isArray(list)) {
+      list = []
+    }
     
     // 计算总数量
     let count = 0
     list.forEach((it: any) => {
-      count += it.quantity
+      if (it && it.quantity) {
+        count += Number(it.quantity) || 0
+      }
     })
     cartNum.value = count
     
     return list as CartList
   } catch (error) {
     console.error('Failed to fetch cart:', error)
+    cartNum.value = 0
     return [] as CartList
   }
 })
@@ -162,34 +175,34 @@ const getProductThumb = (thumb: string) => {
   return getProductImage(thumb)
 }
 
-// 确认删除对话框状态
-const showDeleteConfirm = ref(false)
-const itemToDelete = ref<number | null>(null)
-
-const openDeleteConfirm = (index: number) => {
-  itemToDelete.value = index
-  showDeleteConfirm.value = true
-}
-
-const confirmDelete = () => {
-  if (itemToDelete.value !== null) {
-    handleRemoveCartItem(itemToDelete.value)
-    itemToDelete.value = null
-  }
-  showDeleteConfirm.value = false
+// 确认删除（在 Modal 中调用）
+const confirmDelete = async (index: number) => {
+  await handleRemoveCartItem(index)
 }
 </script>
 
 <template>
-  <div class="cart-page">
+  <div class="cart-page max-w-7xl mx-auto w-full">
     <!-- 页面标题 -->
     <div class="mb-8">
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-        Shopping Cart
-      </h1>
-      <p class="text-gray-600 dark:text-gray-400">
-        Review and manage your items
-      </p>
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Shopping Cart
+          </h1>
+          <p class="text-gray-600 dark:text-gray-400">
+            Review and manage your items
+          </p>
+        </div>
+        <UButton
+          variant="ghost"
+          color="neutral"
+          icon="i-lucide-arrow-left"
+          @click="router.push('/')"
+        >
+          继续购物
+        </UButton>
+      </div>
     </div>
 
     <!-- 加载状态 -->
@@ -198,21 +211,26 @@ const confirmDelete = () => {
     </div>
 
     <!-- 购物车内容 -->
-    <div v-else-if="cart_list && cart_list.length > 0" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div v-else-if="!pending && cart_list && Array.isArray(cart_list) && cart_list.length > 0" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- 购物车商品列表 -->
       <div class="lg:col-span-2 space-y-4">
         <UCard>
           <template #header>
-            <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
-              Cart Items ({{ cart_list.length }})
-            </h2>
+            <div class="flex items-center justify-between">
+              <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
+                购物车商品 ({{ cart_list.length }})
+              </h2>
+              <UBadge color="primary" variant="subtle">
+                {{ cart_list.length }} 件商品
+              </UBadge>
+            </div>
           </template>
 
           <div class="space-y-4">
             <div
               v-for="(item, index) in cart_list"
               :key="item.id"
-              class="cart-item flex gap-4 pb-4 border-b border-gray-200 dark:border-gray-700 last:border-0 last:pb-0"
+              class="cart-item flex gap-4 p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
             >
               <!-- 商品图片 -->
               <div class="cart-item-thumb flex-shrink-0">
@@ -230,7 +248,7 @@ const confirmDelete = () => {
 
               <!-- 商品信息 -->
               <div class="cart-item-info flex-1 min-w-0">
-                <div class="cart-item-title mb-1">
+                <div class="cart-item-title mb-2">
                   <NuxtLink
                     :to="`/product/${item.product_id}`"
                     class="text-base font-medium text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors line-clamp-2"
@@ -240,49 +258,100 @@ const confirmDelete = () => {
                 </div>
                 <div
                   v-if="item.sku_title && item.sku_title.length > 0"
-                  class="cart-item-desc text-sm text-gray-500 dark:text-gray-400 mb-2"
+                  class="cart-item-desc text-sm text-gray-500 dark:text-gray-400 mb-3"
                 >
-                  Specification: {{ item.sku_title }}
+                  <UBadge color="neutral" variant="subtle" size="xs">
+                    {{ item.sku_title }}
+                  </UBadge>
                 </div>
                 
-                <!-- 价格 -->
-                <div class="flex items-baseline gap-2">
-                  <span class="text-lg font-semibold text-[#ff4d4f] dark:text-red-400">
-                    {{ formatPrice(item.price) }}
-                  </span>
-                  <span
-                    v-if="Number(item.price) < Number(item.original_price)"
-                    class="text-sm text-gray-500 dark:text-gray-400 line-through"
-                  >
-                    {{ formatPrice(item.original_price) }}
-                  </span>
+                <!-- 价格和操作区域 -->
+                <div class="flex items-center justify-between">
+                  <!-- 价格 -->
+                  <div class="flex items-baseline gap-2">
+                    <span class="text-lg font-semibold text-[#ff4d4f] dark:text-red-400">
+                      {{ formatPrice(item.price) }}
+                    </span>
+                    <span
+                      v-if="Number(item.price) < Number(item.original_price)"
+                      class="text-sm text-gray-500 dark:text-gray-400 line-through"
+                    >
+                      {{ formatPrice(item.original_price) }}
+                    </span>
+                  </div>
+
+                  <!-- 数量控制和删除按钮 -->
+                  <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm text-gray-600 dark:text-gray-400">数量:</span>
+                      <UInputNumber
+                        :model-value="item.quantity"
+                        :min="1"
+                        :max="50"
+                        :disabled="lock"
+                        size="sm"
+                        class="w-24"
+                        @update:model-value="(val: number | null) => {
+                          if (val !== null && val >= 1) {
+                            handleChangeCartItem(index, val)
+                          }
+                        }"
+                      />
+                    </div>
+                    <UModal>
+                      <UButton
+                        variant="ghost"
+                        color="error"
+                        size="sm"
+                        icon="i-lucide-trash-2"
+                        :disabled="lock"
+                        aria-label="Remove item"
+                      />
+                      <template #content>
+                        <UCard>
+                          <template #header>
+                            <div class="flex items-center justify-between">
+                              <div class="flex items-center gap-3">
+                                <UIcon name="i-lucide-alert-triangle" class="w-6 h-6 text-error-600 dark:text-error-400" />
+                                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                                  确认删除
+                                </h3>
+                              </div>
+                            </div>
+                          </template>
+
+                          <div class="py-4">
+                            <p class="text-sm text-gray-600 dark:text-gray-400">
+                              确定要从购物车中移除
+                              <span class="font-medium text-gray-900 dark:text-white">
+                                "{{ item.title }}"
+                              </span>
+                              吗？
+                            </p>
+                          </div>
+
+                          <template #footer>
+                            <div class="flex justify-end gap-3">
+                              <UButton
+                                variant="ghost"
+                                color="neutral"
+                              >
+                                取消
+                              </UButton>
+                              <UButton
+                                color="error"
+                                @click="confirmDelete(index)"
+                                :disabled="lock"
+                              >
+                                删除
+                              </UButton>
+                            </div>
+                          </template>
+                        </UCard>
+                      </template>
+                    </UModal>
+                  </div>
                 </div>
-              </div>
-
-              <!-- 数量控制 -->
-              <div class="cart-item-quantity flex-shrink-0">
-                <UInputNumber
-                  v-model="item.quantity"
-                  :min="1"
-                  :max="50"
-                  :disabled="lock"
-                  size="sm"
-                  @update:model-value="(val: number | null) => val !== null && handleChangeCartItem(index, val)"
-                />
-              </div>
-
-              <!-- 删除按钮 -->
-              <div class="cart-item-action flex-shrink-0">
-                <UButton
-                  variant="ghost"
-                  color="error"
-                  size="sm"
-                  icon="i-lucide-trash-2"
-                  :disabled="lock"
-                  @click="openDeleteConfirm(index)"
-                >
-                  Remove
-                </UButton>
               </div>
             </div>
           </div>
@@ -291,17 +360,17 @@ const confirmDelete = () => {
 
       <!-- 订单摘要 -->
       <div class="lg:col-span-1">
-        <UCard>
+        <UCard class="sticky top-24">
           <template #header>
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
-              Order Summary
+              订单摘要
             </h2>
           </template>
 
           <div class="space-y-4">
             <!-- 商品小计 -->
-            <div class="flex justify-between items-center">
-              <span class="text-gray-600 dark:text-gray-400">Items Subtotal</span>
+            <div class="flex justify-between items-center text-sm">
+              <span class="text-gray-600 dark:text-gray-400">商品小计</span>
               <span class="text-gray-900 dark:text-white font-medium">
                 {{ formatPrice(total_amount) }}
               </span>
@@ -310,9 +379,9 @@ const confirmDelete = () => {
             <!-- 折扣 -->
             <div
               v-if="discount_amount > 0"
-              class="flex justify-between items-center"
+              class="flex justify-between items-center text-sm"
             >
-              <span class="text-gray-600 dark:text-gray-400">Discount</span>
+              <span class="text-gray-600 dark:text-gray-400">折扣优惠</span>
               <span class="text-green-600 dark:text-green-400 font-medium">
                 -{{ formatPrice(discount_amount) }}
               </span>
@@ -329,8 +398,8 @@ const confirmDelete = () => {
             </div>
 
             <!-- 提示信息 -->
-            <p class="text-sm text-gray-500 dark:text-gray-400 pt-2">
-              Tax included. Shipping calculated at checkout.
+            <p class="text-xs text-gray-500 dark:text-gray-400 pt-2">
+              税费已包含。运费将在结算时计算。
             </p>
 
             <!-- 结算按钮 -->
@@ -340,9 +409,10 @@ const confirmDelete = () => {
               block
               icon="i-lucide-shopping-bag"
               :disabled="lock || pending"
+              :loading="lock || pending"
               @click="handleToCheckout"
             >
-              Proceed to Checkout
+              前往结算
             </UButton>
           </div>
         </UCard>
@@ -350,11 +420,12 @@ const confirmDelete = () => {
     </div>
 
     <!-- 空购物车状态 -->
-    <UEmptyState
-      v-else
+    <UEmpty
+      v-else-if="!pending && (!cart_list || !Array.isArray(cart_list) || cart_list.length === 0)"
       icon="i-lucide-shopping-cart"
-      title="Your cart is empty"
-      description="Add some items to your cart to continue shopping"
+      title="购物车是空的"
+      description="添加一些商品到购物车继续购物"
+      class="py-12"
     >
       <template #actions>
         <UButton
@@ -363,43 +434,12 @@ const confirmDelete = () => {
           icon="i-lucide-arrow-left"
           @click="router.push('/')"
         >
-          Continue Shopping
+          继续购物
         </UButton>
       </template>
-    </UEmptyState>
+    </UEmpty>
 
-    <!-- 删除确认对话框 -->
-    <UModal v-model="showDeleteConfirm">
-      <UCard>
-        <template #header>
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-            Remove Item
-          </h3>
-        </template>
 
-        <p class="text-gray-600 dark:text-gray-400 mb-4">
-          Are you sure you want to remove this item from your cart?
-        </p>
-
-        <template #footer>
-          <div class="flex justify-end gap-3">
-            <UButton
-              variant="ghost"
-              color="neutral"
-              @click="showDeleteConfirm = false"
-            >
-              Cancel
-            </UButton>
-            <UButton
-              color="error"
-              @click="confirmDelete"
-            >
-              Remove
-            </UButton>
-          </div>
-        </template>
-      </UCard>
-    </UModal>
   </div>
 </template>
 
@@ -411,6 +451,7 @@ const confirmDelete = () => {
 
 .cart-item {
   transition: all 0.2s ease;
+  background-color: transparent;
 }
 
 .cart-item:hover {
@@ -429,15 +470,25 @@ const confirmDelete = () => {
   overflow: hidden;
 }
 
+/* 响应式优化 */
 @media (max-width: 1024px) {
   .cart-item {
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 1rem;
   }
   
-  .cart-item-quantity,
-  .cart-item-action {
+  .cart-item-thumb {
+    align-self: flex-start;
+  }
+  
+  .cart-item-info {
     width: 100%;
-    margin-top: 8px;
+  }
+}
+
+@media (max-width: 640px) {
+  .cart-item {
+    padding: 1rem;
   }
 }
 </style>

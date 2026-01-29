@@ -139,7 +139,7 @@ const selectImage = (index: number) => {
   
   <!-- 空状态 -->
   <div v-else class="flex items-center justify-center w-full aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg">
-    <UEmptyState
+    <UEmpty
       icon="i-lucide-image"
       title="暂无图片"
       description="该商品暂时没有图片"

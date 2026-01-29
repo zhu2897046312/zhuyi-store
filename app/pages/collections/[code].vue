@@ -141,7 +141,7 @@ useHead({
   </div>
 
   <!-- 空状态 -->
-  <UEmptyState
+  <UEmpty
     v-else
     icon="i-lucide-package"
     title="暂无商品"
