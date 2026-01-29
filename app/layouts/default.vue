@@ -124,6 +124,38 @@ const breadcrumbItems = computed(() => {
   return items
 })
 
+// Footer 文档列表
+const { data: footer_list } = await useAsyncData('footer_list_', async () => {
+  try {
+    const res = await api.blogs.document.list({})
+    const list = Array.isArray(res) ? res : (res?.list || [])
+    return list.map((item: any) => ({
+      ...item,
+      link: `/blogs/${item.code}` // 动态生成 link 字段
+    }))
+  } catch (error) {
+    console.error('Failed to fetch footer list:', error)
+    return []
+  }
+})
+
+// 将文档列表分成4列显示
+const footerColumns = computed(() => {
+  if (!footer_list.value || footer_list.value.length === 0) return []
+  
+  const itemsPerColumn = Math.ceil(footer_list.value.length / 4)
+  const columns: any[][] = [[], [], [], []]
+  
+  footer_list.value.forEach((item: any, index: number) => {
+    const columnIndex = Math.floor(index / itemsPerColumn)
+    if (columnIndex < 4 && columns[columnIndex]) {
+      columns[columnIndex].push(item)
+    }
+  })
+  
+  return columns.filter(col => col && col.length > 0)
+})
+
 // 用户态
 const accessToken = useCookie<string | null>('accessToken')
 const isAuthed = computed(() => !!accessToken.value)
@@ -261,7 +293,29 @@ const userMenuItems = computed(() => {
     <UFooter class="mt-auto border-t">
       <template #top>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div v-if="footerColumns && footerColumns.length > 0" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+            <div
+              v-for="(column, columnIndex) in footerColumns"
+              :key="columnIndex"
+            >
+              <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                <li
+                  v-for="item in column"
+                  :key="item.id"
+                >
+                  <NuxtLink
+                    :to="item.link"
+                    class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                  >
+                    {{ item.title }}
+                  </NuxtLink>
+                </li>
+              </ul>
+            </div>
+          </div>
+          
+          <!-- 如果没有数据，显示默认内容 -->
+          <div v-else class="grid grid-cols-1 md:grid-cols-4 gap-8">
             <!-- 关于我们 -->
             <div>
               <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">关于我们</h3>
@@ -362,3 +416,6 @@ const userMenuItems = computed(() => {
     </UFooter>
   </div>
 </template>
+
+
+
