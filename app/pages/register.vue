@@ -74,7 +74,7 @@ const handleRegister = async () => {
   loading.value = true
   
   try {
-    const result = await api.shop.user.register({
+    await api.shop.user.register({
       email: form.email,
       username: form.username,
       password: form.password
@@ -88,10 +88,11 @@ const handleRegister = async () => {
     
     // 注册成功后跳转到登录页面
     await router.push('/login')
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : '注册失败，请重试'
     toast.add({
       title: '注册失败',
-      description: error.message || '注册失败，请重试',
+      description: errorMessage,
       color: 'error'
     })
   } finally {
@@ -143,80 +144,74 @@ useHead({
 
         <form @submit.prevent="handleRegister" class="space-y-4">
           <!-- 邮箱输入 -->
-          <div>
-            <UFormGroup
-              label="邮箱地址"
-              :error="errors.email"
-              required
-            >
-              <UInput
-                v-model="form.email"
-                type="email"
-                placeholder="your.email@example.com"
-                size="lg"
-                :disabled="loading"
-                @blur="validateField('email')"
-                @keydown="handleKeydown"
-                icon="i-lucide-mail"
-                autocomplete="email"
-                class="w-full"
-              />
-            </UFormGroup>
-          </div>
+          <UFormField
+            label="邮箱地址"
+            :error="errors.email"
+            required
+          >
+            <UInput
+              v-model="form.email"
+              type="email"
+              placeholder="your.email@example.com"
+              size="lg"
+              :disabled="loading"
+              @blur="validateField('email')"
+              @keydown="handleKeydown"
+              icon="i-lucide-mail"
+              autocomplete="email"
+              class="w-full"
+            />
+          </UFormField>
 
           <!-- 用户名输入 -->
-          <div>
-            <UFormGroup
-              label="用户名"
-              :error="errors.username"
-              required
-            >
-              <UInput
-                v-model="form.username"
-                type="text"
-                placeholder="请输入用户名"
-                size="lg"
-                :disabled="loading"
-                @blur="validateField('username')"
-                @keydown="handleKeydown"
-                icon="i-lucide-user"
-                autocomplete="username"
-                class="w-full"
-              />
-            </UFormGroup>
-          </div>
+          <UFormField
+            label="用户名"
+            :error="errors.username"
+            required
+          >
+            <UInput
+              v-model="form.username"
+              type="text"
+              placeholder="请输入用户名"
+              size="lg"
+              :disabled="loading"
+              @blur="validateField('username')"
+              @keydown="handleKeydown"
+              icon="i-lucide-user"
+              autocomplete="username"
+              class="w-full"
+            />
+          </UFormField>
 
           <!-- 密码输入 -->
-          <div>
-            <UFormGroup
-              label="密码"
-              :error="errors.password"
-              required
+          <UFormField
+            label="密码"
+            :error="errors.password"
+            required
+          >
+            <UInput
+              v-model="form.password"
+              :type="showPassword ? 'text' : 'password'"
+              placeholder="请输入密码"
+              size="lg"
+              :disabled="loading"
+              @blur="validateField('password')"
+              @keydown="handleKeydown"
+              icon="i-lucide-lock"
+              autocomplete="new-password"
+              class="w-full"
             >
-              <UInput
-                v-model="form.password"
-                :type="showPassword ? 'text' : 'password'"
-                placeholder="请输入密码"
-                size="lg"
-                :disabled="loading"
-                @blur="validateField('password')"
-                @keydown="handleKeydown"
-                icon="i-lucide-lock"
-                autocomplete="new-password"
-                class="w-full"
-              >
-                <template #trailing>
-                  <UButton
-                    :icon="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-                    color="neutral"
-                    variant="link"
-                    :padded="false"
-                    @click="showPassword = !showPassword"
-                  />
-                </template>
-              </UInput>
-            </UFormGroup>
-          </div>
+              <template #trailing>
+                <UButton
+                  :icon="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                  color="neutral"
+                  variant="link"
+                  :padded="false"
+                  @click="showPassword = !showPassword"
+                />
+              </template>
+            </UInput>
+          </UFormField>
 
           <!-- 注册按钮 -->
           <UButton

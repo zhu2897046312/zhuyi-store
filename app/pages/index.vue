@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import api from '../api'
-import type { ProductItem } from '../api/type'
+import type { ProductListResponse, ProductItem } from '../api/type'
 import { getProductImage } from '../utils/auth'
 
 // 使用默认布局
@@ -13,29 +13,18 @@ const page = ref(1)
 const pageSize = ref(20)
 
 // 获取商品列表
-const { data: productData, pending, refresh } = await useAsyncData(
+const { data: productData, pending, refresh } = await useAsyncData<ProductListResponse>(
   'products',
   async () => {
-    const res: any = await api.shop.product.list({
+    const res = await api.shop.product.list({
       page_no: page.value,
       page_size: pageSize.value
     })
     
-    // 处理不同的响应格式
-    if (Array.isArray(res)) {
-      return {
-        list: res,
-        total: res.length
-      }
-    } else if (res && typeof res === 'object') {
-      return {
-        list: res.list || [],
-        total: res.total || 0
-      }
-    }
+    // 返回标准化的响应数据
     return {
-      list: [],
-      total: 0
+      list: res.list || [],
+      total: res.total || 0
     }
   },
   {
@@ -44,15 +33,13 @@ const { data: productData, pending, refresh } = await useAsyncData(
 )
 
 // 商品列表
-const products = computed(() => {
-  if (!productData.value) return []
-  return productData.value.list || []
+const products = computed<ProductItem[]>(() => {
+  return productData.value?.list || []
 })
 
 // 总商品数
 const totalProducts = computed(() => {
-  if (!productData.value) return 0
-  return productData.value.total || 0
+  return productData.value?.total || 0
 })
 
 // 处理商品图片的工具函数

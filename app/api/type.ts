@@ -36,6 +36,12 @@ export interface ProductItem {
     category: Category | null;
 }
 
+// 商品列表响应类型
+export interface ProductListResponse {
+  list: ProductItem[];
+  total: number;
+}
+
 export type ProductList = ProductItem[];
 
 
@@ -105,17 +111,17 @@ export interface DocumentItem {
   // 文档列表类型
   export type DocumentList = DocumentItem[];
 
-  export interface SkuConfigItem {
-    id: number;
-    product_id: number;
-    sku_id: number;
-    prod_attributes_id: number;
-    prod_attributes_value_id: number;
-    created_time: string; // ISO 8601 格式的时间字符串
-    updated_time: string; // ISO 8601 格式的时间字符串
-  }
+  // export interface SkuConfigItem {
+  //   id: number;
+  //   product_id: number;
+  //   sku_id: number;
+  //   prod_attributes_id: number;
+  //   prod_attributes_value_id: number;
+  //   created_time: string; // ISO 8601 格式的时间字符串
+  //   updated_time: string; // ISO 8601 格式的时间字符串
+  // }
 
-  export type SkuConfigList = SkuConfigItem[];
+  // export type SkuConfigList = SkuConfigItem[];
 
   // 商品状态枚举
 export enum SpProductStatus {
@@ -148,45 +154,6 @@ export enum SpProductStatus {
     PUBLISHED = 1, // 已发布
     UNPUBLISHED = 2, // 未发布
   }
-
-  // 商品属性值前端VO
-export interface SpProductProdValueFrontVo {
-    id: number;
-    title: string;
-    sort_num: number;
-    selected : boolean;
-  }
-  
-  // 商品属性前端VO
-  export interface SpProductProdFrontVo {
-    id: number;
-    title: string;
-    sort_num: number;
-    value: SpProductProdValueFrontVo[];
-  }
-  
-  // 商品SKU前端信息VO
-  export interface SpProductSkuFrontInfoVo {
-    id: number;
-    sku_code: string;
-    title: string;
-    price: number;
-    original_price: number;
-    stock: number;
-    default_show: SpProductSkuDefaultShow;
-    state: SpProductSkuStatus;
-  }
-  
-  // 商品属性实体
-  export interface SpProductPropertyEntity {
-    id: number;
-    product_id: number;
-    title: string;
-    value: string;
-    sort_num: number;
-    created_time: string;
-    updated_time: string;
-  }
   
   // 标签实体
   export interface SpTagEntity {
@@ -203,31 +170,6 @@ export interface SpProductProdValueFrontVo {
     match_word: string;
   }
 
-  // 商品前端信息VO（主类型）
-export interface ProductInfo{
-    id: number;
-    category_id: number;
-    title: string;
-    state: SpProductStatus;
-    price: number;
-    original_price: number;
-    stock: number;
-    picture: string;
-    picture_gallery: string[];
-    description: string;
-    sold_num: number;
-    open_sku: SpProductOpenSku;
-    sort_num: number;
-    putaway_time: string;
-    content: string;
-    seo_title: string;
-    seo_keyword: string;
-    seo_description: string;
-    property_list: SpProductPropertyEntity[];
-    sku_list: SpProductSkuFrontInfoVo[];
-    sku_config: SpProductProdFrontVo[];
-    tags: SpTagEntity[];
-  };
 
 // 单个地址的数据类型
 export interface Address {
@@ -255,3 +197,271 @@ export interface AddressListResponse {
   address: Address;
   total: number;
 };
+
+// ========== API 请求参数类型 ==========
+
+// 分类相关请求参数
+export interface CategoryGetInfoByCodeParams {
+  code: string;
+}
+
+export interface CategoryGetParentsParams {
+  code: string;
+}
+
+// 商品相关请求参数
+export interface ProductListParams {
+  page_no?: number;
+  page_size?: number;
+  category_id?: number;
+  keyword?: string;
+  [key: string]: unknown; // 允许其他可选参数
+}
+
+// 用户认证相关请求参数
+export interface UserRegisterParams {
+  email: string;
+  username: string;
+  password: string;
+}
+
+export interface UserLoginParams {
+  email: string;
+  password: string;
+}
+
+export interface UserSendEmailParams {
+  email: string;
+}
+
+export interface UserResetPwdParams {
+  email: string;
+  code: string;
+  password: string;
+}
+
+// 购物车相关请求参数
+export interface CartActParams {
+  product_id: number;
+  sku_id: number;
+  quantity: number;
+  add: boolean;
+}
+
+// 地址相关请求参数
+export interface AddressListParams {
+  page_no?: number;
+  page_size?: number;
+  [key: string]: unknown;
+}
+
+export interface AddressCreateParams {
+  title: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  province: string;
+  city: string;
+  region?: string;
+  detail_address: string;
+  country: string;
+  postal_code: string;
+  default_status?: number;
+}
+
+export interface AddressModifyParams extends AddressCreateParams {
+  id: number;
+}
+
+// 订单相关请求参数
+export interface OrderProductItem {
+  product_id: number;
+  quantity: number;
+  sku_id: number;
+}
+
+export interface OrderCreateParams {
+  product_items: OrderProductItem[];
+  pay_type: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  province: string;
+  country: string;
+  city: string;
+  postal_code: string;
+  detail_address: string;
+}
+
+export interface OrderListParams {
+  page_no?: number;
+  page_size?: number;
+  status?: number;
+  [key: string]: unknown;
+}
+
+export interface OrderGetPaymentUrlParams {
+  order_id: string;
+  pay_type: string;
+}
+
+export interface OrderCaptureOrderParams {
+  orderId: string;
+  [key: string]: unknown;
+}
+
+// 市场相关请求参数
+export interface MarketBreadcrumbParams {
+  code: string;
+  type?: string;
+  [key: string]: unknown;
+}
+
+// 标签相关请求参数
+export interface TagProductListParams {
+  page_no?: number;
+  page_size?: number;
+  code: string;
+  [key: string]: unknown;
+}
+
+// 文档相关请求参数
+export interface DocumentListParams {
+  page_no?: number;
+  page_size?: number;
+  category_id?: number;
+  keyword?: string;
+  [key: string]: unknown;
+}
+
+// 通用类型（根据项目中 common 包的习惯推测）
+type MyID = number;           // 可能是 string化的雪花ID / uint64 / int64
+type MyState = number;                 // 通常 0 = 禁用/关闭, 1 = 启用/开启
+type MyNumber = number;                // 用于 stock、销量、阅读数等
+type MySortNum = number;
+
+// ────────────────────────────────────────────────
+// 商品主信息
+export interface Product {
+  id: MyID;
+  category_id: MyID;
+  title: string;
+  state: MyState;
+  price: number;                  // decimal(10,2)
+  original_price: number;
+  cost_price: number;
+  stock: MyNumber;
+  open_sku: MyState;              // 是否开启规格 0/1
+  picture: string;                // 主图 URL
+  picture_gallery: string[];      // 详情图列表（后端 json.RawMessage 通常转为 string[]）
+  description: string;            // 简短描述（200字符限制）
+  sold_num: MyNumber;
+  version: number;
+  sort_num: MySortNum;
+  hot: number;                    // uint8，通常 0 或 1
+  putaway_time: string | null;    // ISO8601 或 null
+  created_time: string;
+  updated_time: string;
+  deleted_time: string | null;
+  detail_url: string;             // 商品详情页链接（H5/PC）
+  price_locked: boolean;
+}
+
+// ────────────────────────────────────────────────
+// 商品详情富文本内容（独立表）
+export interface ProductContent {
+  id: MyID;
+  product_id: MyID;
+  content: string;                // 富文本 HTML / Markdown
+  seo_title: string;
+  seo_keyword: string;
+  seo_description: string;
+  created_time: string;
+  updated_time: string;
+}
+
+// ────────────────────────────────────────────────
+// 商品属性（规格参数 / 关键卖点）
+export interface ProductProperty {
+  id: MyID;
+  product_id: MyID;
+  title: string;                  // 如：材质、重量、产地
+  value: string;                  // 如：棉、500g、中国
+  sort_num: MySortNum;
+  created_time: string;
+  updated_time: string;
+}
+
+// ────────────────────────────────────────────────
+// SKU（单品规格）
+export interface Sku {
+  id: MyID;
+  product_id: MyID;
+  sku_code: string;               // 商家编码
+  title: string;                  // 如：白色-36码
+  price: number;
+  original_price: number;
+  cost_price: number;
+  stock: MyNumber;
+  default_show: MyState;          // 是否默认展示该 SKU（0/1）
+  state: MyState;
+  version: number;
+  created_time: string;
+  updated_time: string;
+  deleted_time: string | null;
+}
+
+// SKU 的属性组合索引（用于前端规格选择器）
+export interface SkuConfigItem {
+  id: MyID;
+  product_id: MyID;
+  sku_id: MyID;
+  prod_attributes_id: MyID;         // 属性组ID（如颜色、尺码）
+  prod_attributes_value_id: MyID;   // 属性值ID（如红色、XL）
+  created_time: string;
+  updated_time: string;
+}
+
+// 注意：这里 sku_config_list 通常是一个数组，里面的每一项代表一条 规格-值 的对应关系
+// 前端常用来构建规格选择矩阵
+
+// ────────────────────────────────────────────────
+// 店铺/商品标签（活动标签、推荐标签等）
+export interface ShopTag {
+  id: MyID;
+  title: string;
+  code: string;                   // 标签唯一码
+  thumb: string;                  // 标签小图标
+  state: MyState;
+  read_num: MyNumber;
+  sort_num: MySortNum;
+  created_time: string;
+  updated_time: string;
+  deleted_time: string | null;
+  match_word: string;             // 匹配关键词（可能用于搜索）
+}
+
+/**
+ * 商品详情页接口返回的 result 数据结构
+ */
+export interface ProductDetailData {
+  /** 商品基本信息 */
+  product: Product;
+
+  /** 商品详情富文本内容（HTML/Markdown） */
+  content: ProductContent | null;
+
+  /** 商品属性参数列表（如：产地、材质、规格参数等） */
+  property_list: ProductProperty[];
+
+  /** 该商品的所有 SKU */
+  sku_list: Sku[];
+
+  /** SKU 与属性值组合的索引表（用于前端规格选择器构建） */
+  sku_config_list: SkuConfigItem[];
+
+  /** 商品关联的标签（促销标签、推荐标签等） */
+  tags: ShopTag[];
+}
