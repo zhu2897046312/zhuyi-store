@@ -37,7 +37,7 @@ const shop = {
   },
   product: {
     list: async (data: ProductListParams): Promise<ProductListResponse> => httpRequest.exec('POST', '/shop/product/list', data),
-    info: async (id: number): Promise<ProductDetailData> => httpRequest.exec('GET', '/shop/product/info', {id}),
+    info: async (id: number | string): Promise<ProductDetailData> => httpRequest.exec('GET', '/shop/product/info', {id: Number(id)}),
   },
   user: {
     register: async (data: UserRegisterParams): Promise<unknown> => httpRequest.exec('POST', '/shop/userAuth/register', data),

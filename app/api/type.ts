@@ -443,25 +443,91 @@ export interface ShopTag {
   match_word: string;             // 匹配关键词（可能用于搜索）
 }
 
+// SKU 配置值类型
+export interface SkuConfigValue {
+  id: MyID;
+  title: string;
+  sort_num: MySortNum;
+}
+
+// SKU 配置类型（用于前端规格选择器）
+export interface SkuConfig {
+  id: MyID;
+  title: string;
+  sort_num: MySortNum;
+  value: SkuConfigValue[];
+}
+
 /**
- * 商品详情页接口返回的 result 数据结构
+ * 商品详情页接口返回的 result 数据结构（扁平化结构）
  */
 export interface ProductDetailData {
-  /** 商品基本信息 */
-  product: Product;
-
+  /** 商品ID */
+  id: MyID;
+  
+  /** 分类ID */
+  category_id: MyID;
+  
+  /** 商品标题 */
+  title: string;
+  
+  /** 商品状态 */
+  state: MyState;
+  
+  /** 商品价格 */
+  price: number;
+  
+  /** 商品原价 */
+  original_price: number;
+  
+  /** 成本价 */
+  cost_price?: number;
+  
+  /** 库存 */
+  stock: MyNumber;
+  
+  /** 是否开启SKU */
+  open_sku: MyState;
+  
+  /** 主图URL */
+  picture: string;
+  
+  /** 详情图列表 */
+  picture_gallery: string[];
+  
+  /** 简短描述 */
+  description: string;
+  
+  /** 销量 */
+  sold_num: MyNumber;
+  
+  /** 排序号 */
+  sort_num: MySortNum;
+  
+  /** 上架时间 */
+  putaway_time: string;
+  
   /** 商品详情富文本内容（HTML/Markdown） */
-  content: ProductContent | null;
-
+  content: string;
+  
+  /** SEO标题 */
+  seo_title: string;
+  
+  /** SEO关键词 */
+  seo_keyword: string;
+  
+  /** SEO描述 */
+  seo_description: string;
+  
   /** 商品属性参数列表（如：产地、材质、规格参数等） */
   property_list: ProductProperty[];
-
+  
   /** 该商品的所有 SKU */
   sku_list: Sku[];
-
-  /** SKU 与属性值组合的索引表（用于前端规格选择器构建） */
-  sku_config_list: SkuConfigItem[];
-
-  /** 商品关联的标签（促销标签、推荐标签等） */
-  tags: ShopTag[];
+  
+  /** SKU 配置（用于前端规格选择器构建） */
+  sku_config: SkuConfig[];
+  
+  /** 商品关联的标签（促销标签、推荐标签等），可能为 null */
+  tags: ShopTag[] | null;
 }

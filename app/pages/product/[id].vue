@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import api from '../../api'
-import type { ProductInfo } from '../../api/type'
+import type { ProductDetailData } from '../../api/type'
 import useCart from '../../hook/useCartHook'
 import { getProductImage } from '../../utils/auth'
 
@@ -10,7 +10,10 @@ definePageMeta({
 })
 
 const route = useRoute()
-const productId = route.params.id as any
+const productId = computed(() => {
+  const id = route.params.id
+  return typeof id === 'string' ? Number(id) : Number(id) || 0
+})
 const activeTab = ref('details')
 
 // Tab 配置
@@ -39,15 +42,22 @@ const defaultSkuCode = useState<string>('defaultSkuCode', () => '') // 新增：
 // 商品的数量
 const quantity = useState<number>('quantity', () => 1)
   
-const { data: info, status } = await useAsyncData(`product-${productId}`,async() => {
-
+const { data: info, status } = await useAsyncData<ProductDetailData>(`product-${productId.value}`, async () => {
   try {
-    const res = await api.shop.product.info(productId) 
+    if (!productId.value || productId.value === 0) {
+      throw createError({ statusCode: 404, message: 'Invalid product ID' })
+    }
+    
+    const res = await api.shop.product.info(productId.value)
+    
+    // 设置初始价格
     price.value = res.price
     original_price.value = res.original_price
     quantity.value = 1
     current_sku_id.value = 0
-    const defaultSku = res.sku_list.find((sku: any) => sku.default_show === 1)
+    
+    // 查找默认 SKU
+    const defaultSku = res.sku_list?.find((sku) => sku.default_show === 1)
     if (defaultSku) {
       defaultSkuCode.value = defaultSku.sku_code
       price.value = defaultSku.price
@@ -55,42 +65,60 @@ const { data: info, status } = await useAsyncData(`product-${productId}`,async()
       current_sku_id.value = defaultSku.id
     }
 
-    return res as ProductInfo
+    return res
   } catch (error) {
+    console.error('Failed to fetch product:', error)
     throw createError({ statusCode: 404, message: 'Product not found' })
   }
 })
 
+// 推荐产品获取 - 如果没有标签则不获取
 const { data: recommendedProducts } = await useAsyncData(
-  `recommended-products-${productId}`,
+  `recommended-products-${productId.value}`,
   async () => {
     try {
-      // 获取当前商品的所有标签ID
-      const tagIds = info.value?.tags?.map((tag: any) => tag.id) || []
+      // 等待主商品数据加载完成
+      if (!info.value) {
+        return []
+      }
+      
+      // 获取当前商品的所有标签ID，tags 可能为 null
+      const tags = info.value.tags || []
+      if (tags.length === 0) {
+        // 没有标签，直接返回空数组
+        return []
+      }
+      
+      const tagIds = tags.map((tag) => tag.id).filter((id) => id != null)
+      if (tagIds.length === 0) {
+        return []
+      }
+      
       // 随机选择最多4个标签（如果标签数超过4个）
-      const randomTagIds = tagIds
+      const randomTagIds = [...tagIds]
         .sort(() => 0.5 - Math.random())
         .slice(0, 4)
       
-      // 获取这些标签下的热门商品 --- tags 为空时 会获取 整个list列表内容 进行展示前面4个
-      const res: any = await api.shop.product.list({
+      // 获取这些标签下的热门商品
+      const res = await api.shop.product.list({
         tag_ids: randomTagIds.join(','),
         page_size: 4,
         sort_by: 'sales',
         sort_order: 'desc'
       })
       
-      // 处理响应格式
-      if (Array.isArray(res)) {
-        return res
-      } else if (res && typeof res === 'object') {
-        return res.list || []
-      }
-      return []
+      // 处理响应格式 - 返回 ProductListResponse
+      return res.list || []
     } catch (error) {
       console.error('Failed to fetch recommended products:', error)
       return []
     }
+  },
+  {
+    // 延迟执行，等待主商品加载完成
+    lazy: true,
+    // 监听主商品数据变化
+    watch: [() => info.value]
   }
 )
 
@@ -123,13 +151,13 @@ const handleAddCart = async () => {
  * @param sku_code 
  */
 const handleOnSkuChange = (sku_code: string) => {
-  const skuList = info.value!.sku_list || []
-  const hit = skuList.filter((it: any) => it.sku_code === sku_code) as any[]
-  console.log(sku_code, hit)
-  if (hit.length > 0) {
-    price.value = hit[0].price
-    original_price.value = hit[0].original_price
-    current_sku_id.value = hit[0].id
+  const skuList = info.value?.sku_list || []
+  const selectedSku = skuList.find((it) => it.sku_code === sku_code)
+  console.log(sku_code, selectedSku)
+  if (selectedSku) {
+    price.value = selectedSku.price
+    original_price.value = selectedSku.original_price
+    current_sku_id.value = selectedSku.id
   } else {
     console.log('没有找到sku')
   }
@@ -156,9 +184,9 @@ useHead({
       </div>
       <div class="product-info">
         <h1 class="product-title">{{ info?.title }}</h1>
-        <div class="tags-container">
+        <div v-if="info?.tags && info.tags.length > 0" class="tags-container">
           <NuxtLink 
-            v-for="item in info?.tags" 
+            v-for="item in info.tags" 
             :key="item.id"
             :to="`/tag/${item.code}`"
             class="tag-item"
@@ -173,18 +201,17 @@ useHead({
           <span v-if="original_price > price" class="original-price">${{ original_price }}</span>
         </div>
         <div class="shipping-info">Tax included. Shipping cost calculated at checkout.</div>
-        <div v-if="info!.property_list.length > 0" class="property-container">
+        <div v-if="info?.property_list && info.property_list.length > 0" class="property-container">
           <div v-for="item in info?.property_list" class="property-item">
             <span class="property-item-label">{{ item.title }}:</span>
             <span class="property-item-value">{{ item.value }}</span>
           </div>
         </div>
-        <div class="sku-container">
+        <div v-if="info?.sku_config && info.sku_config.length > 0" class="sku-container">
           <ProductSkuBox 
-          v-if="info && info.sku_config"
-          :list="info!.sku_config" 
-          :defaultSelected="defaultSkuCode"
-          @change="handleOnSkuChange" 
+            :list="info.sku_config" 
+            :defaultSelected="defaultSkuCode"
+            @change="handleOnSkuChange" 
           />
         </div>
         <div class="cart-action-container">
