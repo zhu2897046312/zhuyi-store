@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import api from '../../api'
+import type { OrderInfoResponse } from '../../api/type'
+import { OrderStatus, OrderStatusLabel } from '../../api/type'
 import { getProductImage } from '../../utils/auth'
 
 // 使用默认布局
@@ -12,29 +14,31 @@ const router = useRouter()
 const toast = useToast()
 const accessToken = useCookie('accessToken')
 
-// 订单状态映射
-const stateArr = ['', 'Pending Payment', 'Pending Shipment', 'Shipped', 'Completed', 'Canceled', 'Invalid Order']
-
 // 获取订单状态颜色
-const getStatusColor = (state: number) => {
+const getStatusColor = (state: OrderStatus) => {
   switch (state) {
-    case 1:
+    case OrderStatus.PendingPayment:
       return 'warning'
-    case 2:
+    case OrderStatus.PendingShipment:
       return 'info'
-    case 3:
-    case 4:
+    case OrderStatus.Shipped:
+    case OrderStatus.Completed:
       return 'success'
-    case 5:
-    case 6:
+    case OrderStatus.Closed:
+    case OrderStatus.Invalid:
       return 'error'
     default:
       return 'neutral'
   }
 }
 
+// 获取订单状态文本
+const getStatusLabel = (state: OrderStatus) => {
+  return OrderStatusLabel[state] || 'Unknown Status'
+}
+
 // 获取订单详情
-const { data: res, pending } = await useAsyncData(`order-${route.params.id}`, async () => {
+const { data: res, pending } = await useAsyncData<OrderInfoResponse>(`order-${route.params.id}`, async () => {
   try {
     const result = await api.shop.order.get(route.params.id as string)
     return result
@@ -71,7 +75,7 @@ const formatPrice = (price: unknown) => {
 }
 
 // 格式化日期
-const formatDate = (dateString: string) => {
+const formatDate = (dateString: string | null) => {
   if (!dateString) return 'N/A'
   try {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -148,16 +152,21 @@ const formatDate = (dateString: string) => {
                   Order #{{ res.order.code }}
                 </h1>
                 <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Placed on {{ formatDate(res.order.create_time) }}
+                  <span v-if="res.order.payment_time">
+                    Paid on {{ formatDate(res.order.payment_time) }}
+                  </span>
+                  <span v-else>
+                    Order placed
+                  </span>
                 </p>
               </div>
             </div>
             <UBadge
-              :color="getStatusColor(res.order.state)"
+              :color="getStatusColor(res.order.state as OrderStatus)"
               variant="subtle"
               size="lg"
             >
-              {{ stateArr[res.order.state] || 'Unknown Status' }}
+              {{ getStatusLabel(res.order.state as OrderStatus) }}
             </UBadge>
           </div>
         </template>
@@ -182,7 +191,10 @@ const formatDate = (dateString: string) => {
                       :src="getProductImage(item.thumb)"
                       :alt="item.title"
                       class="w-full h-full object-cover"
-                      @error="(e: any) => { e.target.src = '/placeholder-product.jpg' }"
+                      @error="(e: Event) => { 
+                        const target = e.target as HTMLImageElement
+                        if (target) target.src = '/placeholder-product.jpg' 
+                      }"
                     />
                   </div>
                 </div>
@@ -229,7 +241,7 @@ const formatDate = (dateString: string) => {
                 {{ formatPrice((res.order.pay_amount || 0) - (res.order.freight || 0)) }}
               </span>
             </div>
-            <div class="flex justify-between items-center text-sm">
+            <div v-if="res.order.freight > 0" class="flex justify-between items-center text-sm">
               <span class="text-gray-600 dark:text-gray-400">Freight</span>
               <span class="text-gray-900 dark:text-white font-medium">
                 {{ formatPrice(res.order.freight) }}

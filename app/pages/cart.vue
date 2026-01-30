@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import api from '../api'
-import type { CartList } from '../api/type'
+import type { CartItem } from '../api/type'
 import { getProductImage } from '../utils/auth'
+import { useCartShared } from '../composables/useCartShared'
 
 // 使用默认布局
 definePageMeta({
@@ -10,7 +11,9 @@ definePageMeta({
 
 const router = useRouter()
 const toast = useToast()
-const cartNum = useState('cartNum', () => 0)
+
+// 使用共享的购物车 composable
+const { cartNum, useCartList, refreshAllCartData } = useCartShared()
 
 // SEO
 useHead({
@@ -22,39 +25,7 @@ useHead({
 })
 
 // 获取购物车列表
-const { data: cart_list, refresh, pending } = await useAsyncData('cart-list', async () => {
-  try {
-    const res: any = await api.shop.cart.list()
-    
-    // 处理不同的响应格式，确保始终返回数组
-    let list: any[] = []
-    if (Array.isArray(res)) {
-      list = res
-    } else if (res && typeof res === 'object') {
-      list = res.list || []
-    }
-    
-    // 确保 list 是数组
-    if (!Array.isArray(list)) {
-      list = []
-    }
-    
-    // 计算总数量
-    let count = 0
-    list.forEach((it: any) => {
-      if (it && it.quantity) {
-        count += Number(it.quantity) || 0
-      }
-    })
-    cartNum.value = count
-    
-    return list as CartList
-  } catch (error) {
-    console.error('Failed to fetch cart:', error)
-    cartNum.value = 0
-    return [] as CartList
-  }
-})
+const { data: cart_list, refresh, pending } = await useCartList('cart-list')
 
 // 锁定状态，防止重复操作
 const lock = ref(false)
@@ -62,21 +33,13 @@ const lock = ref(false)
 // 计算总金额（原价）
 const total_amount = computed(() => {
   if (!cart_list.value) return 0
-  let total = 0
-  cart_list.value.forEach((item: any) => {
-    total += Number(item.original_price) * item.quantity
-  })
-  return total
+  return cart_list.value.reduce((total, item) => total + item.original_price * item.quantity, 0)
 })
 
 // 计算实付金额（折扣后）
 const pay_amount = computed(() => {
   if (!cart_list.value) return 0
-  let total = 0
-  cart_list.value.forEach((item: any) => {
-    total += Number(item.price) * item.quantity
-  })
-  return total
+  return cart_list.value.reduce((total, item) => total + item.price * item.quantity, 0)
 })
 
 // 计算折扣金额
@@ -106,17 +69,19 @@ const handleChangeCartItem = async (index: number, newQuantity: number) => {
       add: quantityDiff > 0
     })
     
-    await refresh()
+    // 刷新所有购物车数据（包括数量和所有页面的列表）
+    await refreshAllCartData()
     
     toast.add({
       title: 'Cart Updated',
       description: 'Item quantity has been updated',
       color: 'success'
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update cart item'
     toast.add({
       title: 'Update Failed',
-      description: error.message || 'Failed to update cart item',
+      description: errorMessage,
       color: 'error'
     })
   } finally {
@@ -141,17 +106,19 @@ const handleRemoveCartItem = async (index: number) => {
       add: false
     })
     
-    await refresh()
+    // 刷新所有购物车数据（包括数量和所有页面的列表）
+    await refreshAllCartData()
     
     toast.add({
       title: 'Item Removed',
       description: 'Item has been removed from cart',
       color: 'success'
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to remove item from cart'
     toast.add({
       title: 'Remove Failed',
-      description: error.message || 'Failed to remove item from cart',
+      description: errorMessage,
       color: 'error'
     })
   } finally {
@@ -165,9 +132,8 @@ const handleToCheckout = () => {
 }
 
 // 格式化价格
-const formatPrice = (price: unknown) => {
-  const num = Number(price)
-  return !isNaN(num) ? `$${num.toFixed(2)}` : '$0.00'
+const formatPrice = (price: number) => {
+  return `$${price.toFixed(2)}`
 }
 
 // 处理商品图片
@@ -240,7 +206,10 @@ const confirmDelete = async (index: number) => {
                       :src="getProductThumb(item.thumb)"
                       :alt="item.title"
                       class="w-full h-full object-cover"
-                      @error="(e: any) => { e.target.src = '/placeholder-product.jpg' }"
+                      @error="(e: Event) => { 
+                        const target = e.target as HTMLImageElement
+                        if (target) target.src = '/placeholder-product.jpg' 
+                      }"
                     />
                   </div>
                 </NuxtLink>

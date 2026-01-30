@@ -1,10 +1,13 @@
 import api from "../api"
+import { useCartShared } from "../composables/useCartShared"
 
 export default function useCart() {
   const toast = useToast()
   const router = useRouter()
-  const cartNum = useState('cartNum', () => 0)
   const showLoginModal = useState('showLoginModal', () => false)
+  
+  // 使用共享的购物车 composable
+  const { refreshAllCartData } = useCartShared()
 
   const addCart = async (product_id: number, sku_id: number, quantity: number) => {
     try {
@@ -22,18 +25,22 @@ export default function useCart() {
         color: 'success'
       })
       
-      await getList()
+      // 刷新所有购物车数据（包括数量和列表）
+      await refreshAllCartData()
+      
       return res
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add item to cart. Please try again.'
+      
       // 显示错误通知
       toast.add({
         title: 'Add to Cart Failed',
-        description: error.message || 'Failed to add item to cart. Please try again.',
+        description: errorMessage,
         color: 'error'
       })
       
       // 如果是需要登录的错误，跳转到登录页
-      if (error.message === 'Please login first') {
+      if (errorMessage === 'Please login first') {
         showLoginModal.value = true
         // 延迟跳转，让用户先看到错误提示
         setTimeout(() => {
@@ -45,24 +52,7 @@ export default function useCart() {
     }
   }
 
-  const getList = async () => {
-    try {
-      const res = await api.shop.cart.list()
-      // console.debug('Get cart list success', res)
-      let count = 0
-      res.forEach((it: any) => {
-        count += it.quantity
-      })
-      cartNum.value = count
-      return res
-    } catch (error: any) {
-      return []
-    }
-  }
-
   return {
-    addCart,
-    getList,
-    cartNum
+    addCart
   }
 }

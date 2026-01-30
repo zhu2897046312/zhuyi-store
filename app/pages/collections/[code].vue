@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import api from '../../api'
+import type { Category, ProductListResponse, ProductItem } from '../../api/type'
 import { getProductImage } from '../../utils/auth'
 
 // 使用默认布局
@@ -12,12 +13,13 @@ const route = useRoute()
 const code = route.params.code as string
 
 // 分页参数
-const page = ref(Number.parseInt(route.query.page as string || '1'))
+const page = ref(Number.parseInt((route.query.page as string) || '1'))
 const pageSize = ref(20)
 
 // 获取分类信息
-const { data: info, pending: categoryPending } = await useAsyncData(`category-${code}`, async () => {
-  const res: any = await api.shop.category.getInfoByCode(code)
+const { data: info, pending: categoryPending } = await useAsyncData<Category>(`category-${code}`, async () => {
+  const res = await api.shop.category.getInfoByCode(code)
+  // 如果 SEO 字段为空，使用默认值
   return {
     ...res,
     seo_title: res.seo_title || `${res.title} Collection`,
@@ -32,31 +34,21 @@ if (!info.value) {
 }
 
 // 获取商品列表
-const { data: productData, pending: productsPending, refresh } = await useAsyncData(
+const { data: productData, pending: productsPending, refresh } = await useAsyncData<ProductListResponse>(
   `products-${code}`,
   async () => {
-    const res: any = await api.shop.product.list({
-      category_id: info.value!.id,
+    if (!info.value) {
+      return {
+        list: [],
+        total: 0
+      }
+    }
+    
+    return await api.shop.product.list({
+      category_id: info.value.id,
       page_no: page.value,
       page_size: pageSize.value
     })
-    
-    // 处理不同的响应格式
-    if (Array.isArray(res)) {
-      return {
-        list: res,
-        total: res.length
-      }
-    } else if (res && typeof res === 'object') {
-      return {
-        list: res.list || [],
-        total: res.total || 0
-      }
-    }
-    return {
-      list: [],
-      total: 0
-    }
   },
   {
     watch: [page]
@@ -71,9 +63,8 @@ const totalPages = computed(() => {
 })
 
 // 商品列表
-const products = computed(() => {
-  if (!productData.value) return []
-  return productData.value.list || []
+const products = computed<ProductItem[]>(() => {
+  return productData.value?.list || []
 })
 
 // 处理商品图片
@@ -133,7 +124,7 @@ useHead({
       <UPagination
         v-model="page"
         :total="productData?.total || 0"
-        :page-size="pageSize"
+        :items-per-page="pageSize"
         :max="7"
         @update:model-value="onUpdatePage"
       />

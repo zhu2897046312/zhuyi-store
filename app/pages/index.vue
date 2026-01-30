@@ -16,16 +16,10 @@ const pageSize = ref(20)
 const { data: productData, pending, refresh } = await useAsyncData<ProductListResponse>(
   'products',
   async () => {
-    const res = await api.shop.product.list({
+    return await api.shop.product.list({
       page_no: page.value,
       page_size: pageSize.value
     })
-    
-    // 返回标准化的响应数据
-    return {
-      list: res.list || [],
-      total: res.total || 0
-    }
   },
   {
     watch: [page]
@@ -108,7 +102,7 @@ useHead({
       <UPagination
         v-model="page"
         :total="totalProducts"
-        :page-size="pageSize"
+        :items-per-page="pageSize"
         :max="7"
       />
     </div>

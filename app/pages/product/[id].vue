@@ -107,8 +107,8 @@ const { data: recommendedProducts } = await useAsyncData(
         sort_order: 'desc'
       })
       
-      // 处理响应格式 - 返回 ProductListResponse
-      return res.list || []
+      // 直接返回列表，API 已返回标准化的 ProductListResponse
+      return res.list
     } catch (error) {
       console.error('Failed to fetch recommended products:', error)
       return []

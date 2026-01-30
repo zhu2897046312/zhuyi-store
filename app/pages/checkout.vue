@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import api from '../api'
+import type { CartItem, OrderCreateParams } from '../api/type'
 import { getProductImage } from '../utils/auth'
+import { useCartShared } from '../composables/useCartShared'
 
 // 使用默认布局
 definePageMeta({
@@ -206,20 +208,11 @@ const provinceOptions = computed(() => {
   })) || []
 })
 
+// 使用共享的购物车 composable
+const { useCartList } = useCartShared()
+
 // 获取购物车列表
-const { data: products, status, pending: productsPending } = await useAsyncData('checkout-cart', async () => {
-  try {
-    const res: any = await api.shop.cart.list()
-    const list = Array.isArray(res) ? res : (res?.list || [])
-    return list
-  } catch (err) {
-    console.error('购物车数据加载失败:', err)
-    throw createError({
-      statusCode: 400,
-      message: '无法加载购物车数据'
-    })
-  }
-})
+const { data: products, status, pending: productsPending } = await useCartList('checkout-cart')
 
 // 获取运费
 const { data: freight, pending: freightPending } = await useAsyncData('freight', async () => {
@@ -235,11 +228,7 @@ const { data: freight, pending: freightPending } = await useAsyncData('freight',
 // 计算总金额
 const total_amount = computed(() => {
   if (!products.value) return 0
-  let total = 0
-  products.value.forEach((item: any) => {
-    total += Number(item.price) * item.quantity
-  })
-  return total
+  return products.value.reduce((total, item) => total + item.price * item.quantity, 0)
 })
 
 // 格式化价格
@@ -279,13 +268,20 @@ const handleCheckout = async () => {
   loading.value = true
   
   try {
-    const payload = {
-      product_items: products.value.map((item: any) => ({
+    if (!address.province) {
+      throw new Error('Province is required')
+    }
+    if (!address.country) {
+      throw new Error('Country is required')
+    }
+    
+    const payload: OrderCreateParams = {
+      product_items: products.value.map((item) => ({
         product_id: item.product_id,
         quantity: item.quantity,
         sku_id: item.sku_id
       })),
-      pay_type: selectedPayType.value,
+      pay_type: selectedPayType.value.toString(),
       first_name: address.first_name,
       last_name: address.last_name,
       email: address.email,
@@ -297,11 +293,11 @@ const handleCheckout = async () => {
       detail_address: address.detail_address
     }
     
-    const res = await api.shop.order.create(payload)
-    console.log('checkout result', res)
+    const orderId = await api.shop.order.create(payload)
+    console.log('checkout result', orderId)
     
     const data = {
-      order_id: res.toString(),
+      order_id: orderId,
       pay_type: selectedPayType.value
     }
     
@@ -313,10 +309,11 @@ const handleCheckout = async () => {
     } else {
       throw new Error('Payment URL not found')
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to process checkout'
     toast.add({
       title: 'Checkout Failed',
-      description: error.message || 'Failed to process checkout',
+      description: errorMessage,
       color: 'error'
     })
   } finally {
@@ -650,7 +647,10 @@ watch(() => address.country, () => {
                       :src="getProductThumb(item.thumb)"
                       :alt="item.title"
                       class="w-full h-full object-cover"
-                      @error="(e: any) => { e.target.src = '/placeholder-product.jpg' }"
+                      @error="(e: Event) => { 
+                        const target = e.target as HTMLImageElement
+                        if (target) target.src = '/placeholder-product.jpg' 
+                      }"
                     />
                   </div>
                   <UBadge

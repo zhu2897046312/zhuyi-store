@@ -3,7 +3,7 @@ import type {
   Category,
   ProductDetailData,
   ProductListResponse,
-  CartList,
+  CartListResponse,
   Address,
   AddressListResponse,
   ProductListParams,
@@ -20,12 +20,14 @@ import type {
   OrderGetPaymentUrlParams,
   OrderCaptureOrderParams,
   MarketBreadcrumbParams,
+  BreadcrumbItem,
   MarketInfo,
   TagProductListParams,
   SpTagEntity,
   DocumentListParams,
-  DocumentList,
-  DocumentItem,
+  DocumentListResponse,
+  DocumentInfoResponse,
+  OrderInfoResponse,
 } from "./type";
 
 const shop = {
@@ -48,7 +50,7 @@ const shop = {
   },
   cart: {
     act: async (data: CartActParams): Promise<unknown> => httpRequest.exec('POST', '/shop/userCart/act', data),
-    list: async (): Promise<CartList> => httpRequest.exec('POST', '/shop/userCart/list', {}),
+    list: async (): Promise<CartListResponse> => httpRequest.exec('POST', '/shop/userCart/list', {}),
   },
   address: {
     list: async (data: AddressListParams): Promise<AddressListResponse> => httpRequest.exec('POST', '/shop/userAddress/list', data),
@@ -58,14 +60,14 @@ const shop = {
     del: async (id: number): Promise<unknown> => httpRequest.exec('GET', '/shop/userAddress/del', {id}),
   },
   order: {
-    create: async (data: OrderCreateParams): Promise<number> => httpRequest.exec('POST', '/shop/order/create', data),
+    create: async (data: OrderCreateParams): Promise<string> => httpRequest.exec('POST', '/shop/order/create', data),
     list: async (data: OrderListParams): Promise<unknown> => httpRequest.exec('POST', '/shop/order/list', data),
-    get: async (queryCode: string): Promise<unknown> => httpRequest.exec('GET', '/shop/order/query-code', { queryCode }),
+    get: async (queryCode: string): Promise<OrderInfoResponse> => httpRequest.exec('GET', '/shop/order/query-code', { queryCode }),
     getPaymentUrl: async (data: OrderGetPaymentUrlParams): Promise<{ approveUrl?: string }> => httpRequest.exec('POST', `/payment/paypal/create-order`, data),
     captureOrder: async (data: OrderCaptureOrderParams): Promise<unknown> => httpRequest.exec('POST', `/payment/paypal/capture-order`, data),
   },
   market: {
-    breadcrumb: async (data: MarketBreadcrumbParams): Promise<unknown> => httpRequest.exec('POST', '/shop/market/breadcrumb', data),
+    breadcrumb: async (data: MarketBreadcrumbParams): Promise<BreadcrumbItem[]> => httpRequest.exec('POST', '/shop/market/breadcrumb', data),
     siteInfo: async (): Promise<MarketInfo> => httpRequest.exec('GET', '/shop/market/siteInfo', {}),
     freight: async (): Promise<unknown> => httpRequest.exec('GET', '/shop/market/freight', {}),
   },
@@ -77,8 +79,8 @@ const shop = {
 
 const blogs = {
   document: {
-    info: async (code: string): Promise<DocumentItem> => httpRequest.exec('GET', '/shop/document/info', {code}),
-    list: async (data: DocumentListParams): Promise<DocumentList> => httpRequest.exec('GET', '/shop/document/list', data)
+    info: async (code: string): Promise<DocumentInfoResponse> => httpRequest.exec('GET', '/shop/document/info', {code}),
+    list: async (data: DocumentListParams): Promise<DocumentListResponse> => httpRequest.exec('GET', '/shop/document/list', data)
   },
   recommend: {
     /**

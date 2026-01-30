@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import api from '../../api'
+import type { DocumentInfoResponse } from '../../api/type'
 
 // 使用默认布局
 definePageMeta({
@@ -10,7 +11,7 @@ const route = useRoute()
 const code = route.params.code as string
 
 // 获取文档信息
-const { data: info, status, pending } = await useAsyncData(
+const { data: info, status, pending } = await useAsyncData<DocumentInfoResponse>(
   `document:${code}`,
   async () => {
     try {
@@ -45,15 +46,15 @@ const formatDate = (dateString: string | null) => {
 
 // SEO
 useHead({
-  title: info.value?.cont?.seo_title || info.value?.document?.title || 'Blog Post',
+  title: info.value?.archive?.seo_title || info.value?.document?.title || 'Blog Post',
   meta: [
     {
       name: 'keywords',
-      content: info.value?.cont?.seo_keyword || ''
+      content: info.value?.archive?.seo_keyword || info.value?.document?.keyword || ''
     },
     {
       name: 'description',
-      content: info.value?.cont?.seo_description || info.value?.document?.description || ''
+      content: info.value?.archive?.seo_description || info.value?.document?.description || ''
     }
   ]
 })
@@ -95,7 +96,7 @@ useHead({
       <UCard class="blog-content-card">
         <div
           class="blog-content prose prose-lg dark:prose-invert max-w-none"
-          v-html="info.cont?.cont"
+          v-html="info.archive?.cont"
         />
       </UCard>
 
