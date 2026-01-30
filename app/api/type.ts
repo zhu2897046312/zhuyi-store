@@ -168,7 +168,7 @@ export type AddressList = Address[];
 
 // 地址列表响应的数据类型
 export interface AddressListResponse {
-  address: Address;
+  list: Address[];
   total: number;
 };
 
