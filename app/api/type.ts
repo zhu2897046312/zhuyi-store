@@ -819,6 +819,14 @@ export interface OrderInfoResponse {
   address: OrderReceiveAddress;
 }
 
+/**
+ * 订单列表响应类型
+ */
+export interface OrderListResponse {
+  list: OrderFrontQueryVo[];
+  total: number;
+}
+
 export enum OrderStatus {
   PendingPayment   = 1,
   PendingShipment  = 2,

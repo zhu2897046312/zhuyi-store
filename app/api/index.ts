@@ -28,6 +28,7 @@ import type {
   DocumentListResponse,
   DocumentInfoResponse,
   OrderInfoResponse,
+  OrderListResponse,
 } from "./type";
 
 const shop = {
@@ -61,7 +62,7 @@ const shop = {
   },
   order: {
     create: async (data: OrderCreateParams): Promise<string> => httpRequest.exec('POST', '/shop/order/create', data),
-    list: async (data: OrderListParams): Promise<unknown> => httpRequest.exec('POST', '/shop/order/list', data),
+    list: async (data: OrderListParams): Promise<OrderListResponse> => httpRequest.exec('POST', '/shop/order/list', data),
     get: async (queryCode: string): Promise<OrderInfoResponse> => httpRequest.exec('GET', '/shop/order/query-code', { queryCode }),
     getPaymentUrl: async (data: OrderGetPaymentUrlParams): Promise<{ approveUrl?: string }> => httpRequest.exec('POST', `/payment/paypal/create-order`, data),
     captureOrder: async (data: OrderCaptureOrderParams): Promise<unknown> => httpRequest.exec('POST', `/payment/paypal/capture-order`, data),

@@ -146,6 +146,13 @@ const userMenuItems = computed(() => {
         }
       },
       {
+        label: 'My Orders',
+        icon: 'i-lucide-receipt',
+        onSelect: () => {
+          router.push('/account/orders')
+        }
+      },
+      {
         label: '地址管理',
         icon: 'i-lucide-map-pin',
         onSelect: () => {
