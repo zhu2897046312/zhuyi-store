@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import api from '../api'
-import type { CartItem, OrderCreateParams } from '../api/type'
+import type { CartItem, OrderCreateParams, Address } from '../api/type'
 import { getProductImage } from '../utils/auth'
 import { useCartShared } from '../composables/useCartShared'
+import { useAddressShared } from '../composables/useAddressShared'
 
 // 使用默认布局
 definePageMeta({
@@ -25,6 +26,13 @@ const selectedPayType = ref(1)
 const payTypeOptions = [
   { value: 1, label: 'PayPal' }
 ]
+
+// 使用共享的地址列表
+const { useAddressList, getDefaultAddress } = useAddressShared()
+const { data: addressList, pending: addressListPending } = await useAddressList('address-list-shared')
+
+// 当前选中的地址ID
+const selectedAddressId = ref<number | null>(null)
 
 // 表单数据
 const address = reactive({
@@ -51,6 +59,56 @@ const errors = reactive({
   city: '',
   detail_address: '',
   postal_code: ''
+})
+
+// 填充地址到表单
+const fillAddressToForm = (addr: Address) => {
+  address.first_name = addr.first_name
+  address.last_name = addr.last_name
+  address.email = addr.email
+  address.phone = addr.phone
+  address.country = addr.country
+  address.province = addr.province
+  address.city = addr.city
+  address.region = addr.region || ''
+  address.detail_address = addr.detail_address
+  address.postal_code = addr.postal_code
+  selectedAddressId.value = addr.id
+  
+  // 清除所有错误
+  Object.keys(errors).forEach(key => {
+    errors[key as keyof typeof errors] = ''
+  })
+}
+
+// 是否已初始化默认地址
+const defaultAddressLoaded = ref(false)
+
+// 加载默认地址（仅在首次加载时）
+watch(addressList, (list) => {
+  if (list && list.length > 0 && !defaultAddressLoaded.value) {
+    // 使用 getDefaultAddress computed 获取默认地址
+    const defaultAddr = getDefaultAddress.value
+    if (defaultAddr) {
+      fillAddressToForm(defaultAddr)
+      defaultAddressLoaded.value = true
+    }
+  }
+}, { immediate: true })
+
+// 选择地址
+const selectAddress = (addr: Address) => {
+  fillAddressToForm(addr)
+}
+
+// 地址选项（用于下拉菜单）
+const addressOptions = computed(() => {
+  if (!addressList.value) return []
+  return addressList.value.map(addr => ({
+    label: `${addr.title || 'Address'} - ${addr.first_name} ${addr.last_name}${addr.default_status === 1 ? ' (Default)' : ''}`,
+    value: addr.id,
+    address: addr
+  }))
 })
 
 // 验证规则
@@ -370,6 +428,58 @@ watch(() => address.country, () => {
           </template>
 
           <UForm :state="address" @submit="handleCheckout" class="space-y-6">
+            <!-- 地址选择器 -->
+            <div v-if="addressList && addressList.length > 0" class="mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <UIcon name="i-lucide-map-pin" class="w-5 h-5 text-primary-600" />
+                  <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                    选择收货地址
+                  </h3>
+                </div>
+                <NuxtLink
+                  to="/account/addresses"
+                  class="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex items-center gap-1"
+                >
+                  <UIcon name="i-lucide-plus" class="w-4 h-4" />
+                  管理地址
+                </NuxtLink>
+              </div>
+              
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <UCard
+                  v-for="addr in addressList"
+                  :key="addr.id"
+                  :class="[
+                    'cursor-pointer transition-all hover:shadow-md',
+                    selectedAddressId === addr.id
+                      ? 'ring-2 ring-primary-500 bg-primary-50/50 dark:bg-primary-900/20'
+                      : 'hover:border-gray-300 dark:hover:border-gray-600'
+                  ]"
+                  @click="selectAddress(addr)"
+                >
+                  <div class="p-3">
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-sm font-semibold text-gray-900 dark:text-white">
+                        {{ addr.title || 'Address' }}
+                      </span>
+                      <UBadge v-if="addr.default_status === 1" color="primary" variant="subtle" size="xs">
+                        默认
+                      </UBadge>
+                    </div>
+                    <div class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                      <p class="font-medium text-gray-900 dark:text-white">
+                        {{ addr.first_name }} {{ addr.last_name }}
+                      </p>
+                      <p>{{ addr.detail_address }}</p>
+                      <p>{{ addr.city }}{{ addr.region ? `, ${addr.region}` : '' }} {{ addr.postal_code }}</p>
+                      <p>{{ addr.province }}, {{ addr.country }}</p>
+                    </div>
+                  </div>
+                </UCard>
+              </div>
+            </div>
+
             <!-- 姓名分组 -->
             <div class="space-y-5">
               <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">

@@ -2,6 +2,7 @@
 import api from '../../api'
 import type { Address, AddressCreateParams, AddressModifyParams } from '../../api/type'
 import { useAddressData } from '../../composables/useAddressData'
+import { useAddressShared } from '../../composables/useAddressShared'
 
 definePageMeta({ layout: 'default' })
 
@@ -14,15 +15,9 @@ if (!isAuthed.value) {
   await navigateTo('/login?redirect=/addresses')
 }
 
-const { data: addressList, refresh, pending } = await useAsyncData<Address[]>('address-list', async () => {
-  try {
-    const res = await api.shop.address.list({})
-    return res.list || []
-  } catch (error) {
-    console.error('Failed to fetch addresses:', error)
-    return []
-  }
-})
+// 使用共享的地址列表
+const { useAddressList, refreshAddressList } = useAddressShared()
+const { data: addressList, pending } = await useAddressList('address-list-shared')
 
 // Modal 状态
 const modalOpen = ref(false)
@@ -109,7 +104,7 @@ const handleSave = async () => {
     modalOpen.value = false
     resetForm()
     editingAddress.value = null
-    await refresh()
+    await refreshAddressList()
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to save address'
     toast.add({ title: 'Error', description: errorMessage, color: 'error' })
@@ -127,7 +122,7 @@ watch(() => form.country, () => {
 const handleSetDefault = async (addr: Address) => {
   try {
     await api.shop.address.modify({ ...addr, id: addr.id, default_status: 1 })
-    await refresh()
+    await refreshAddressList()
     toast.add({ title: 'Success', description: 'Default address updated', color: 'success' })
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to update default address'
@@ -139,7 +134,7 @@ const handleSetDefault = async (addr: Address) => {
 const handleDelete = async (id: number) => {
   try {
     await api.shop.address.del(id)
-    await refresh()
+    await refreshAddressList()
     toast.add({ title: 'Success', description: 'Address deleted successfully', color: 'success' })
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to delete address'
@@ -247,6 +242,10 @@ useHead({
     <!-- 统一的 Modal（新增 & 编辑共用） -->
     <UModal v-model:open="modalOpen" title="Address" :description="editingAddress ? 'Edit your shipping address' : 'Add a new shipping address'">
       <template #body>
+          <UFormField label="Address Title" required>
+            <UInput v-model="form.title" placeholder="e.g., Home, Office, etc." size="lg" />
+          </UFormField>
+
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <UFormField label="First Name" required>
               <UInput v-model="form.first_name" placeholder="Enter first name" size="lg" />
